@@ -1,0 +1,51 @@
+<ProductSection ovf:required="true">
+    <Info>VMware Nested Lab Framework Appliance</Info>
+    <Product>zPodFactory Appliance</Product>
+    <Vendor>zPodFactory</Vendor>
+    <Version>{{APPLIANCE_VERSION}}</Version>
+    <ProductUrl>https://github.com/zPodFactory/packer-zpodfactory</ProductUrl>
+    <VendorUrl>https://zpodfactory.github.io</VendorUrl>
+    <Category>Networking</Category>
+    <Property ovf:key="guestinfo.hostname" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Hostname</Label>
+        <Description>Hostname of system</Description>
+    </Property>
+    <Property ovf:key="guestinfo.ipaddress" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>IP Address</Label>
+        <Description>IP Address of the system (Leave blank for DHCP)</Description>
+    </Property>
+    <Property ovf:key="guestinfo.netprefix" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Network CIDR Prefix</Label>
+        <Description>Network CIDR Prefix (Example: 24)</Description>
+    </Property>
+    <Property ovf:key="guestinfo.gateway" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Gateway</Label>
+        <Description>Gateway of the system (Leave blank for DHCP)</Description>
+    </Property>
+    <Property ovf:key="guestinfo.dns" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>DNS</Label>
+        <Description>DNS Servers (separated by space)</Description>
+    </Property>
+    <Property ovf:key="guestinfo.domain" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Domain</Label>
+        <Description>Nested Labs Domain</Description>
+    </Property>
+    <Category>OS Credentials</Category>
+    <Property ovf:key="guestinfo.password" ovf:type="string" ovf:userConfigurable="true" ovf:value="" ovf:password="true">
+        <Label>Root Password</Label>
+        <Description>Password to login in as root. Please use a secure password</Description>
+    </Property>
+    <Property ovf:key="guestinfo.sshkey" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>SSH Public Key</Label>
+        <Description>Leverage an SSH Key to login as root with no password</Description>
+    </Property>
+    <Category>zPodFactory</Category>
+    <Property ovf:key="guestinfo.setup_wireguard" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
+        <Label>Setup a WireGuard VPN Server</Label>
+        <Description>Will provide capability to manage VPN users to access the nested environments</Description>
+    </Property>
+    <Property ovf:key="guestinfo.zpodfactory_version" ovf:type="string" ovf:userConfigurable="false" ovf:value="{{APPLIANCE_VERSION}}">
+        <Label>zPodFactory version to install</Label>
+        <Description>This will match the GitHub tags for our releases</Description>
+    </Property>
+</ProductSection>
