@@ -218,8 +218,11 @@ appliance_config_zpodfactory() {
 
     # Clone zPodFactory main repository
     log "Cloning zPodFactory main repository..."
-    git clone -q https://github.com/zpodfactory/zpodcore --branch v$OVF_ZPODFACTORY_VERSION ~/git/zpodcore &>/dev/null
-
+    if [[ "$version" == "latest" ]]; then
+        git clone -q https://github.com/zpodfactory/zpodcore ~/git/zpodcore &>/dev/null
+    else
+        git clone -q https://github.com/zpodfactory/zpodcore --branch v$OVF_ZPODFACTORY_VERSION ~/git/zpodcore &>/dev/null
+    fi
 
     for i in zpodapi zpodengine zpodcli; do
         cd ~/git/zpodcore/$i
