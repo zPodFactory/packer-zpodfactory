@@ -253,6 +253,9 @@ appliance_config_zpodfactory() {
     docker compose build -q
 
     log "Starting Docker Compose zPodFactory stack..."
+
+    # Set terminal width to acceptable size for clean logs as this is launched in a script
+    export COLUMNS=140
     just -q zpodcore-start-background
 
     sleep 10
@@ -281,10 +284,10 @@ appliance_config_zpodfactory() {
     just zcli library create default -u https://github.com/zpodfactory/zpodlibrary -d "Default zPodFactory library" &>> $ZPODFACTORY_CONFIG_FILE
 
     # Enable component zbox
-    just zcli component enable zbox-12.4 &>> $ZPODFACTORY_CONFIG_FILE
+    just zcli component enable zbox-12.5 &>> $ZPODFACTORY_CONFIG_FILE
 
     # Enable component esxi
-    just zcli component enable esxi-8.0u2b &>> $ZPODFACTORY_CONFIG_FILE
+    # just zcli component enable esxi-8.0u2c &>> $ZPODFACTORY_CONFIG_FILE
 
     log "zPodFactory setup complete."
 }
