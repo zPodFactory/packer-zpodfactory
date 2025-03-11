@@ -39,6 +39,7 @@ appliance_config_ovf_settings() {
     log "Gateway: $OVF_GATEWAY"
     log "IP Address: $OVF_IPADDRESS/$OVF_NETPREFIX"
     log "Setup Wireguard: $OVF_SETUP_WIREGUARD"
+    log "=================================="
 }
 
 # Function to configure the host
@@ -54,7 +55,6 @@ appliance_config_host() {
 127.0.0.1       localhost
 $OVF_IPADDRESS  $OVF_HOSTNAME.$OVF_DOMAIN    $OVF_HOSTNAME
 EOF
-
 }
 
 # Function to configure the network
@@ -116,7 +116,10 @@ EOF
 # Function to configure storage
 appliance_config_storage() {
     log "Configuring storage..."
-    # Your storage configuration commands here
+
+    # Display disk usage before extending partitions
+    log "Disk usage before extending partitions:"
+    duf -only local
 
     # Grow partition 2 on /dev/sda
     if growpart /dev/sda 2; then
@@ -157,6 +160,10 @@ appliance_config_storage() {
         log "Failed to resize filesystem on /dev/vg/root. Exiting..."
         return 1
     fi
+
+    # Display disk usage
+    log "Disk usage after resizing:"
+    duf -only local
 }
 
 # Function to configure credentials
@@ -275,7 +282,6 @@ appliance_config_zpodfactory() {
     just -q zpodengine-deploy-all
 
 
-
     just zcli setting update zpodfactory_host -v $OVF_IPADDRESS &>> $ZPODFACTORY_CONFIG_FILE
     just zcli setting update zpodfactory_default_domain -v $OVF_DOMAIN &>> $ZPODFACTORY_CONFIG_FILE
     just zcli setting update zpodfactory_ssh_key -v $OVF_SSHKEY &>> $ZPODFACTORY_CONFIG_FILE
@@ -284,10 +290,7 @@ appliance_config_zpodfactory() {
     just zcli library create default -u https://github.com/zpodfactory/zpodlibrary -d "Default zPodFactory library" &>> $ZPODFACTORY_CONFIG_FILE
 
     # Enable component zbox
-    just zcli component enable zbox-12.5 &>> $ZPODFACTORY_CONFIG_FILE
-
-    # Enable component esxi
-    # just zcli component enable esxi-8.0u2c &>> $ZPODFACTORY_CONFIG_FILE
+    just zcli component enable zbox-12.7 &>> $ZPODFACTORY_CONFIG_FILE
 
     log "zPodFactory setup complete."
 }
