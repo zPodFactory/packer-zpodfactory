@@ -1,5 +1,21 @@
 #!/bin/zsh
 
+# Parse command line arguments
+RESUME_MODE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --resume)
+            RESUME_MODE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--resume]"
+            exit 1
+            ;;
+    esac
+done
+
 ZPODFACTORY_OVFENV_FILE="/tmp/ovfenv.xml"
 # Path to the configuration file
 ZPODFACTORY_CONFIG_FILE="/etc/zpodfactory.config"
@@ -181,6 +197,9 @@ appliance_config_zpodfactory() {
     log "Configuring zPodFactory..."
     # Your zPodFactory configuration commands here
 
+    # Update apt repositories
+    apt-get -qq update &>> $ZPODFACTORY_CONFIG_FILE
+
     # Install docker and docker compose plugins for zPodFactory App stack
     apt-get -qq install \
      -o Dpkg::Progress-Fancy="0" \
@@ -342,9 +361,30 @@ appliance_config_wireguard() {
     rm -f ~/docker-compose.wireguard.yml
 }
 
+# Function to resume zPodFactory setup after internet issues
+resume_setup() {
+    log "Resuming zPodFactory setup..."
+
+    # We need to reload OVF settings as they are required for zpodfactory setup
+    appliance_config_ovf_settings
+
+    # Check internet access before proceeding
+    appliance_check_internet_access
+
+    # Continue with zpodfactory setup
+    appliance_config_zpodfactory
+    appliance_config_wireguard
+
+    log "Resume setup complete."
+}
 
 # Main execution logic
 main() {
+    if [[ "$RESUME_MODE" == "true" ]]; then
+        resume_setup
+        return
+    fi
+
     # Check if the configuration file already exists
     if [[ -f "$ZPODFACTORY_CONFIG_FILE" ]]; then
         echo "$ZPODFACTORY_CONFIG_FILE exists. This script has already been executed. Exiting..."

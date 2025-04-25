@@ -5,10 +5,14 @@ services:
       - WG_HOST=HOSTNAME.DOMAIN
 
       # Optional:
-      - PASSWORD=zPod@izAmazing2024!
+      # Password is 'zPod@izAmazing2024!'
+      - PASSWORD_HASH=$$2a$$12$$QNNgLCp152s7TpJYaR.9eehjyFbV71T8KfoRfZQGiM6xg7IyXnla6
       - WG_PORT=51820
       - WG_DEFAULT_ADDRESS=192.168.250.x
       - WG_DEFAULT_DNS=IPADDRESS,DOMAIN
+      # WG_ALLOWED_IPS should basically cover this VM access + the network endpoint CIDR for zPods
+      # You can use `just zcli endpoint info endpoint-name -j | jq '.network.networks'` to fetch the information
+      # and add any other CIDR you want to access through the wireguard tunnel separated by a comma
       - WG_ALLOWED_IPS=10.0.0.0/8
       - UI_TRAFFIC_STATS=true
       - UI_CHART_TYPE=2
