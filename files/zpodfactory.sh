@@ -2,15 +2,20 @@
 
 # Parse command line arguments
 RESUME_MODE=false
+EXTEND_DISK_MODE=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --resume)
             RESUME_MODE=true
             shift
             ;;
+        --extend-disk)
+            EXTEND_DISK_MODE=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--resume]"
+            echo "Usage: $0 [--resume] [--extend-disk]"
             exit 1
             ;;
     esac
@@ -136,6 +141,9 @@ appliance_config_storage() {
     # Display disk usage before extending partitions
     log "Disk usage before extending partitions:"
     duf -only local
+
+    # Rescan the disk (detect size change)
+    echo 1 > /sys/class/block/sda/device/rescan
 
     # Grow partition 2 on /dev/sda
     if growpart /dev/sda 2; then
@@ -380,6 +388,10 @@ resume_setup() {
 
 # Main execution logic
 main() {
+    if [[ "$EXTEND_DISK_MODE" == "true" ]]; then
+        appliance_config_storage
+        return
+    fi
     if [[ "$RESUME_MODE" == "true" ]]; then
         resume_setup
         return
