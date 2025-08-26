@@ -119,6 +119,16 @@
       "source": "files/zbox.omp.json",
       "destination": "$HOME/.poshthemes/zbox.omp.json",
       "type": "file"
+    },
+    {
+      "destination": "$HOME/.tmux.conf",
+      "source": "files/tmux.conf",
+      "type": "file"
+    },
+    {
+      "destination": "$HOME/.zshrc",
+      "source": "files/zshrc",
+      "type": "file"
     }
   ]
 }

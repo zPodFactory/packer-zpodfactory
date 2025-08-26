@@ -20,10 +20,15 @@ sed -i 's/#GRUB_GFXMODE=640x480/GRUB_GFXMODE=1152x864/g' /etc/default/grub
 update-grub
 
 echo '> Debian acts as a Router now'
-sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
+# Configure via sysctl.d drop-in (Debian may not ship /etc/sysctl.conf by default)
+cat > /etc/sysctl.d/99-zbox.conf << 'EOF'
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.disable_ipv6 = 1
+EOF
 
-echo '> Disable IPv6'
-echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+# Reload sysctl rules; ignore non-zero to avoid failing the build
+sysctl --system || true
+
 
 echo '> Setup Appliance Banner for /etc/issue & /etc/issue.net'
 echo ">>" | tee /etc/issue /etc/issue.net > /dev/null
@@ -31,7 +36,7 @@ echo ">> zPodFactory Nested Lab Framework" | tee -a /etc/issue /etc/issue.net > 
 echo ">>" | tee -a /etc/issue /etc/issue.net > /dev/null
 sed -i 's/#Banner none/Banner \/etc\/issue.net/g' /etc/ssh/sshd_config
 
-echo '> Enable rc.local facility for debian-init.py'
+echo '> Enable rc.local facility for zpodfactory.sh'
 cat << EOF > /etc/rc.local
 #!/bin/sh -e
 #

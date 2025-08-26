@@ -8,7 +8,10 @@
 echo '> Installing Storage utilities...'
 
 apt-get install -y \
+  gdu \
   lftp \
-  pure-ftpd
+  pure-ftpd \
+  nfs-kernel-server \
+  cloud-guest-utils
 
 echo '> Done'

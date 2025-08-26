@@ -317,7 +317,7 @@ appliance_config_zpodfactory() {
     just zcli library create default -u https://github.com/zpodfactory/zpodlibrary -d "Default zPodFactory library" &>> $ZPODFACTORY_CONFIG_FILE
 
     # Enable component zbox
-    just zcli component enable zbox-12.7 &>> $ZPODFACTORY_CONFIG_FILE
+    just zcli component enable zbox-12.11 &>> $ZPODFACTORY_CONFIG_FILE
 
     log "zPodFactory setup complete."
 }

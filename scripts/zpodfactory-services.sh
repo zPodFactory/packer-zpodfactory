@@ -18,6 +18,3 @@ apt-get install -y python3-pip python3-watchdog
 # Enable zdnsmasqservers service
 systemctl daemon-reload
 systemctl enable zdnsmasqservers.service
-
-# Disable routing daemons, not required.
-systemctl disable frr
