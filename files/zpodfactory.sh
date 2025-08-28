@@ -134,6 +134,23 @@ EOF
     fi
 }
 
+# Function to configure openntpd
+appliance_config_openntpd() {
+    log "Configuring openntpd..."
+
+    # Uncomment and set the listen address to the configured IP
+    sed -i "s/#listen on \*/listen on $OVF_IPADDRESS/" /etc/openntpd/ntpd.conf
+
+    # Restart openntpd service and check status
+    log "Restarting openntpd..."
+    if systemctl restart openntpd; then
+        log "openntpd successfully restarted."
+    else
+        log "Failed to restart openntpd."
+        exit 1
+    fi
+}
+
 # Function to configure storage
 appliance_config_storage() {
     log "Configuring storage..."
@@ -408,6 +425,7 @@ main() {
     appliance_config_host
     appliance_config_network
     appliance_config_dnsmasq
+    appliance_config_openntpd
     appliance_config_storage
     appliance_config_credentials
 
