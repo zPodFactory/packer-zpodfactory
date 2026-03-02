@@ -40,4 +40,13 @@ apt-get install -y \
 #
 curl https://fx.wtf/install.sh | sh
 
+#
+# Install eza (a modern replacement for ls)
+# https://github.com/eza-community/eza
+#
+curl -fsSL https://github.com/eza-community/eza/releases/latest/download/eza_x86_64-unknown-linux-gnu.tar.gz | tar xz
+chmod +x eza
+chown root:root eza
+mv eza /usr/local/bin/eza
+
 echo '> Done'

@@ -328,7 +328,33 @@ appliance_config_zpodfactory() {
 
     just zcli setting update zpodfactory_host -v $OVF_IPADDRESS &>> $ZPODFACTORY_CONFIG_FILE
     just zcli setting update zpodfactory_default_domain -v $OVF_DOMAIN &>> $ZPODFACTORY_CONFIG_FILE
-    just zcli setting update zpodfactory_ssh_key -v $OVF_SSHKEY &>> $ZPODFACTORY_CONFIG_FILE
+
+    # zpodfactory_ssh_key: use OVF value if set, otherwise generate a key pair for the current user
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    if [[ -n "$OVF_SSHKEY" ]]; then
+        zpodfactory_ssh_key="$OVF_SSHKEY"
+    else
+        keytype="rsa"
+        priv_key="$HOME/.ssh/zpodfactory_$keytype"
+        pub_key="$HOME/.ssh/zpodfactory_$keytype.pub"
+        if [[ ! -f "$priv_key" ]]; then
+            ssh-keygen -t "$keytype" -b 4096 -f "$priv_key" -N "" -q
+            log "Generated zPodFactory SSH key at $priv_key"
+        fi
+        zpodfactory_ssh_key=$(cat "$pub_key")
+
+        # SSH config: use generated zpodfactory key for hosts in the default domain
+        {
+            [[ -f "$HOME/.ssh/config" ]] && echo ""
+            echo "Host *.$OVF_DOMAIN"
+            echo "    StrictHostKeyChecking no"
+            echo "    IdentityFile $priv_key"
+        } >> "$HOME/.ssh/config"
+        chmod 600 "$HOME/.ssh/config"
+        log "Updated \$HOME/.ssh/config for *.$OVF_DOMAIN"
+    fi
+    just zcli setting update zpodfactory_ssh_key -v "$zpodfactory_ssh_key" &>> $ZPODFACTORY_CONFIG_FILE
 
     # Add Default library
     just zcli library create default -u https://github.com/zpodfactory/zpodlibrary -d "Default zPodFactory library" &>> $ZPODFACTORY_CONFIG_FILE
@@ -336,7 +362,164 @@ appliance_config_zpodfactory() {
     # Enable component zbox
     just zcli component enable zbox-12.11 &>> $ZPODFACTORY_CONFIG_FILE
 
+    # Store API token for zpodweb and zpod-vcf-deployer (from .zclirc written by zcli factory add)
+    local zclirc="$HOME/.config/zcli/.zclirc"
+    if [[ -f "$zclirc" ]]; then
+        ZPOD_API_TOKEN=$(grep 'zpod_api_token' "$zclirc" 2>/dev/null | cut -d "=" -f 2 | xargs)
+    fi
+
     log "zPodFactory setup complete."
+}
+
+appliance_config_vcf_offline_depot() {
+    log "Preparing VCF offline depot..."
+
+    local repo_dir=~/git/doc-vcf-offlinedepot
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        log "Cloning doc-vcf-offlinedepot repository..."
+        git clone -q https://github.com/tsugliani/doc-vcf-offlinedepot "$repo_dir" &>> "$ZPODFACTORY_CONFIG_FILE" || {
+            log "Failed to clone doc-vcf-offlinedepot repository."
+            return 1
+        }
+    else
+        log "doc-vcf-offlinedepot repository already present. Skipping clone."
+    fi
+
+
+    # Ensure depot root directory exists (used later by UMDS / VCF tooling)
+    mkdir -p /depot
+
+    # Ensure the service-network exists for external compose stacks in the repo
+    if ! docker network ls --format '{{.Name}}' | grep -q '^service-network$'; then
+        log "Creating Docker network service-network..."
+        docker network create service-network &>> "$ZPODFACTORY_CONFIG_FILE" || log "Failed to create Docker network service-network."
+    else
+        log "Docker network service-network already exists."
+    fi
+
+    log "VCF offline depot repository ready."
+}
+
+appliance_config_zpodweb_ui() {
+    log "Configuring zPodFactory Web UI (zpodweb)..."
+
+    local repo_dir=~/git/zpodweb
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        log "Cloning zpodweb repository..."
+        git clone -q https://github.com/zPodFactory/zpodweb "$repo_dir" &>> "$ZPODFACTORY_CONFIG_FILE" || {
+            log "Failed to clone zpodweb repository."
+            return 1
+        }
+    else
+        log "zpodweb repository already present. Skipping clone."
+    fi
+
+    cd "$repo_dir" || {
+        log "Failed to enter zpodweb directory."
+        return 1
+    }
+
+    if [[ ! -f ".env" && -f ".env.example" ]]; then
+        log "Creating .env from .env.example for zpodweb..."
+        cp .env.example .env
+    elif [[ ! -f ".env" ]]; then
+        log "Creating empty .env for zpodweb (no .env.example found)..."
+        touch .env
+    fi
+
+    # Configure API URL
+    if grep -q '^ZPODWEB_DEFAULT_ZPODFACTORY_API_URL=' .env; then
+        sed -i "s|^ZPODWEB_DEFAULT_ZPODFACTORY_API_URL=.*$|ZPODWEB_DEFAULT_ZPODFACTORY_API_URL=http://$OVF_IPADDRESS:8000|" .env
+    fi
+
+    # Set API token (from ZPOD_API_TOKEN set by appliance_config_zpodfactory)
+    if [[ -n "$ZPOD_API_TOKEN" ]]; then
+        if grep -q '^ZPODWEB_DEFAULT_ZPODFACTORY_API_TOKEN=' .env; then
+            sed -i "s|^ZPODWEB_DEFAULT_ZPODFACTORY_API_TOKEN=.*$|ZPODWEB_DEFAULT_ZPODFACTORY_API_TOKEN=$ZPOD_API_TOKEN|" .env
+        else
+            echo "ZPODWEB_DEFAULT_ZPODFACTORY_API_TOKEN=$ZPOD_API_TOKEN" >> .env
+        fi
+        log "Set ZPODWEB_DEFAULT_ZPODFACTORY_API_TOKEN from ZPOD_API_TOKEN."
+    fi
+
+    # Start zpodweb Docker Compose stack
+    if [[ -f "docker-compose.yml" ]]; then
+        log "Starting zpodweb Docker Compose stack..."
+        docker compose up -d &>> "$ZPODFACTORY_CONFIG_FILE" || log "Failed to start zpodweb Docker Compose stack."
+    else
+        log "No docker-compose.yml found for zpodweb, skipping stack startup."
+    fi
+}
+
+appliance_config_zpod_vcf_deployer() {
+    log "Configuring zPod VCF Deployer..."
+
+    # Install uv (Python package installer)
+    if ! command -v uv &>/dev/null; then
+        log "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh &>> "$ZPODFACTORY_CONFIG_FILE" || {
+            log "Failed to install uv."
+            return 1
+        }
+    else
+        log "uv already installed. Skipping."
+    fi
+
+    local repo_dir=~/git/zpod-vcf-deployer
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        log "Cloning zpod-vcf-deployer repository..."
+        git clone -q https://github.com/zPodFactory/zpod-vcf-deployer "$repo_dir" &>> "$ZPODFACTORY_CONFIG_FILE" || {
+            log "Failed to clone zpod-vcf-deployer repository."
+            return 1
+        }
+    else
+        log "zpod-vcf-deployer repository already present. Skipping clone."
+    fi
+
+    cd "$repo_dir" || {
+        log "Failed to enter zpod-vcf-deployer directory."
+        return 1
+    }
+
+    if [[ ! -f ".env" && -f "env_example.txt" ]]; then
+        log "Creating .env from env_example.txt for zpod-vcf-deployer..."
+        cp env_example.txt .env
+    fi
+
+    # Configure base URL to local zPodFactory
+    if grep -q '^ZPODFACTORY_BASE_URL=' .env; then
+        sed -i "s|^ZPODFACTORY_BASE_URL=.*$|ZPODFACTORY_BASE_URL=http://$OVF_IPADDRESS:8000|" .env
+    fi
+
+    # Configure offline depot hostname (FQDN)
+    local depot_fqdn="$OVF_HOSTNAME.$OVF_DOMAIN"
+    if grep -q '^VCF_OFFLINE_DEPOT_HOSTNAME=' .env; then
+        sed -i "s|^VCF_OFFLINE_DEPOT_HOSTNAME=.*$|VCF_OFFLINE_DEPOT_HOSTNAME=$depot_fqdn|" .env
+    fi
+
+    # Configure offline depot username (static)
+    if grep -q '^VCF_OFFLINE_DEPOT_USERNAME=' .env; then
+        sed -i "s|^VCF_OFFLINE_DEPOT_USERNAME=.*$|VCF_OFFLINE_DEPOT_USERNAME=secure|" .env
+    fi
+
+    # Set API token (from ZPOD_API_TOKEN set by appliance_config_zpodfactory)
+    if [[ -n "$ZPOD_API_TOKEN" ]]; then
+        if grep -q '^ZPODFACTORY_ACCESS_TOKEN=' .env; then
+            sed -i "s|^ZPODFACTORY_ACCESS_TOKEN=.*$|ZPODFACTORY_ACCESS_TOKEN=$ZPOD_API_TOKEN|" .env
+        fi
+        log "Set ZPODFACTORY_ACCESS_TOKEN from ZPOD_API_TOKEN."
+    fi
+
+    # Start deployer stack if docker-compose is present
+    if [[ -f "docker-compose.yml" ]]; then
+        log "Starting zpod-vcf-deployer Docker Compose stack..."
+        docker compose up -d &>> "$ZPODFACTORY_CONFIG_FILE" || log "Failed to start zpod-vcf-deployer Docker Compose stack."
+    else
+        log "No docker-compose.yml found for zpod-vcf-deployer, skipping stack startup."
+    fi
 }
 
 appliance_check_internet_access() {
@@ -398,6 +581,9 @@ resume_setup() {
 
     # Continue with zpodfactory setup
     appliance_config_zpodfactory
+    appliance_config_zpodweb_ui
+    appliance_config_vcf_offline_depot
+    appliance_config_zpod_vcf_deployer
     appliance_config_wireguard
 
     log "Resume setup complete."
@@ -435,6 +621,9 @@ main() {
     appliance_check_internet_access
 
     appliance_config_zpodfactory
+    appliance_config_zpodweb_ui
+    appliance_config_vcf_offline_depot
+    appliance_config_zpod_vcf_deployer
     appliance_config_wireguard
 
     # Mark the setup as complete by creating the configuration file
