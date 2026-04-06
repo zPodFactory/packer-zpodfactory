@@ -34,19 +34,25 @@ apt-get install -y \
   colortail \
   syslog-ng
 
+
 #
 # Install fx (JSON tool)
 # https://github.com/antonmedv/fx
 #
 curl https://fx.wtf/install.sh | sh
 
+
 #
-# Install eza (a modern replacement for ls)
-# https://github.com/eza-community/eza
+# Install chezmoi (https://chezmoi.io/)
+# https://github.com/twpayne/chezmoi
 #
-curl -fsSL https://github.com/eza-community/eza/releases/latest/download/eza_x86_64-unknown-linux-gnu.tar.gz | tar xz
-chmod +x eza
-chown root:root eza
-mv eza /usr/local/bin/eza
+curl -s https://api.github.com/repos/twpayne/chezmoi/releases/latest \
+| grep browser_download_url \
+| grep linux_amd64.deb \
+| cut -d '"' -f 4 \
+| xargs curl -LO \
+&& dpkg -i chezmoi_*_linux_amd64.deb && rm chezmoi_*_linux_amd64.deb
+
+
 
 echo '> Done'

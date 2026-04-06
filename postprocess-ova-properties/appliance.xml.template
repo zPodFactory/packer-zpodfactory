@@ -2,7 +2,6 @@
     <Info>VMware Nested Lab Framework Appliance</Info>
     <Product>zPodFactory Appliance</Product>
     <Vendor>zPodFactory</Vendor>
-    <Version>{{APPLIANCE_VERSION}}</Version>
     <ProductUrl>https://github.com/zPodFactory/packer-zpodfactory</ProductUrl>
     <VendorUrl>https://zpodfactory.github.io</VendorUrl>
     <Category>Networking</Category>
@@ -44,8 +43,12 @@
         <Label>Setup a WireGuard VPN Server</Label>
         <Description>Will provide capability to manage VPN users to access the nested environments</Description>
     </Property>
-    <Property ovf:key="guestinfo.zpodfactory_version" ovf:type="string" ovf:userConfigurable="false" ovf:value="{{APPLIANCE_VERSION}}">
-        <Label>zPodFactory version to install</Label>
-        <Description>This will match the GitHub tags for our releases</Description>
+    <Property ovf:key="guestinfo.github_repository" ovf:type="string" ovf:userConfigurable="true" ovf:value="https://github.com/zPodFactory/zpodcore">
+        <Label>zpodcore Git Repository URL</Label>
+        <Description>Full Git URL for the zpodcore repository. Defaults to https://github.com/zPodFactory/zpodcore</Description>
+    </Property>
+    <Property ovf:key="guestinfo.github_branch" ovf:type="string" ovf:userConfigurable="true" ovf:value="main">
+        <Label>zpodcore GitHub Branch</Label>
+        <Description>GitHub branch of zpodcore to clone. Defaults to main.</Description>
     </Property>
 </ProductSection>

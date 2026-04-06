@@ -50,15 +50,19 @@ appliance_config_ovf_settings() {
     OVF_PASSWORD=$(sed -n 's/.*Property oe:key="guestinfo.password" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_SSHKEY=$(sed -n 's/.*Property oe:key="guestinfo.sshkey" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_SETUP_WIREGUARD=$(sed -n 's/.*Property oe:key="guestinfo.setup_wireguard" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
-    OVF_ZPODFACTORY_VERSION=$(sed -n 's/.*Property oe:key="guestinfo.zpodfactory_version" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
+    OVF_GITHUB_REPOSITORY=$(sed -n 's/.*Property oe:key="guestinfo.github_repository" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
+    OVF_GITHUB_REPOSITORY=${OVF_GITHUB_REPOSITORY:-https://github.com/zPodFactory/zpodcore}
+    OVF_GITHUB_BRANCH=$(sed -n 's/.*Property oe:key="guestinfo.github_branch" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
+    OVF_GITHUB_BRANCH=${OVF_GITHUB_BRANCH:-main}
 
     clear
     log "========== OVF Settings =========="
-    log "zPodFactory Version: $OVF_ZPODFACTORY_VERSION"
+    log "zPodFactory GitHub Repository: $OVF_GITHUB_REPOSITORY"
+    log "zPodFactory GitHub Branch: $OVF_GITHUB_BRANCH"
     log "FQDN: $OVF_HOSTNAME.$OVF_DOMAIN"
-    log "DNS: $OVF_DNS"
-    log "Gateway: $OVF_GATEWAY"
     log "IP Address: $OVF_IPADDRESS/$OVF_NETPREFIX"
+    log "Gateway: $OVF_GATEWAY"
+    log "DNS Server: $OVF_DNS"
     log "Setup Wireguard: $OVF_SETUP_WIREGUARD"
     log "=================================="
 }
@@ -232,66 +236,42 @@ appliance_config_zpodfactory() {
      -o Dpkg::Use-Pty="0" \
      -y docker-ce docker-compose-plugin &>> $ZPODFACTORY_CONFIG_FILE
 
-    # Install build packages to be able to compile python through pyenv
+    # Install system packages needed by zPodFactory:
+    #  - git: cloning zpodcore
+    #  - gcc + libpq-dev: required by `uv sync` on the host when
+    #    psycopg2 (used by zpodapi and zpodengine) resolves to a source
+    #    distribution. psycopg2's setup.py invokes `cc` directly;
+    #    installing gcc creates the /usr/bin/cc alternative link.
+    #  - just, bc: justfile runner + column math in the justfile itself
     apt-get -qq install \
      -o Dpkg::Progress-Fancy="0" \
      -o APT::Color="0" \
      -o Dpkg::Use-Pty="0" \
-     -y build-essential libssl-dev zlib1g-dev libbz2-dev \
-        libreadline-dev libsqlite3-dev llvm libncurses5-dev libncursesw5-dev \
-        libffi-dev liblzma-dev python3-openssl git libpq-dev &>> $ZPODFACTORY_CONFIG_FILE
+     -y git gcc libpq-dev just bc &>> $ZPODFACTORY_CONFIG_FILE
 
-    # Install some misc tools for zPodFactory
-    apt-get -qq install \
-     -o Dpkg::Progress-Fancy="0" \
-     -o APT::Color="0" \
-     -o Dpkg::Use-Pty="0" \
-     -y just bc &>> $ZPODFACTORY_CONFIG_FILE
-
-
-    # Install pyenv
-    log "Cloning pyenv repository..."
-    git clone -q https://github.com/pyenv/pyenv.git ~/.pyenv
-
-    # Setup pyenv to shell environment
-    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
-    echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
-    echo 'eval "$(pyenv init -)"' >> ~/.zshrc
-
-    source ~/.zshrc
-
-    log "Installing/Compiling Python 3.12.1..."
-    # Install/Compile python version required for the project
-    pyenv install 3.12.1
+    # NOTE: uv is installed earlier in main() by appliance_install_uv.
+    # uv manages the Python toolchain itself (no pyenv, no system-level
+    # python3-dev build chain), so build-essential/libssl-dev/etc. are
+    # no longer needed on the appliance.
 
     # Create root directory for project
     mkdir -p ~/git
 
     # Clone zPodFactory main repository
-    log "Cloning zPodFactory main repository..."
-    if [[ "$OVF_ZPODFACTORY_VERSION" == "latest" ]]; then
-        git clone -q https://github.com/zpodfactory/zpodcore ~/git/zpodcore &>/dev/null
-    else
-        git clone -q https://github.com/zpodfactory/zpodcore --branch v$OVF_ZPODFACTORY_VERSION ~/git/zpodcore &>/dev/null
-    fi
+    log "Cloning zPodFactory main repository ($OVF_GITHUB_REPOSITORY, branch: $OVF_GITHUB_BRANCH)..."
+    git clone -q "$OVF_GITHUB_REPOSITORY" --branch "$OVF_GITHUB_BRANCH" ~/git/zpodcore &>/dev/null
 
-    for i in zpodapi zpodengine zpodcli; do
+    # Create one uv-managed virtualenv per subproject. Each subproject
+    # is released independently and pins its own Python interpreter via
+    # `requires-python`; `uv sync --frozen` downloads the matching
+    # CPython build automatically (no pyenv compile step).
+    for i in zpodsdk zpodapi zpodengine zpodcli; do
         cd ~/git/zpodcore/$i
-        log "Setting up Python and poetry for $i..."
-        pyenv local 3.12.1
-        pyenv exec pip install --upgrade pip &>> "$ZPODFACTORY_CONFIG_FILE"
-        pyenv exec pip install poetry &>> "$ZPODFACTORY_CONFIG_FILE"
-        poetry config virtualenvs.in-project true
-        poetry -q install
+        log "Running uv sync for $i..."
+        uv sync --frozen &>> "$ZPODFACTORY_CONFIG_FILE"
     done
 
-    # Setup pyenv for zPodCore/just zcli locally
     cd ~/git/zpodcore
-    log "Setting up Python and poetry for zpodcore..."
-    pyenv local 3.12.1
-    pyenv exec pip install --upgrade pip &>> "$ZPODFACTORY_CONFIG_FILE"
-    pyenv exec pip install poetry &>> "$ZPODFACTORY_CONFIG_FILE"
-
 
     # Set default env to VM settings
     log "Setting up default environment for docker compose stack..."
@@ -312,7 +292,7 @@ appliance_config_zpodfactory() {
     sleep 10
 
     # Set zcli default entry/token for potential early troubleshooting.
-    TOKEN=$(docker compose logs | grep zpodapi | grep 'API Token:' | awk '{ print $5 }')
+    TOKEN=$(docker compose logs | grep zpodapi | grep 'API Token:' | awk '{ print $5 }' | tr -d '\r')
 
     just zcli factory add zpodfactory -s http://$OVF_IPADDRESS:8000 -t $TOKEN -a &>> $ZPODFACTORY_CONFIG_FILE
 
@@ -365,7 +345,7 @@ appliance_config_zpodfactory() {
     # Store API token for zpodweb and zpod-vcf-deployer (from .zclirc written by zcli factory add)
     local zclirc="$HOME/.config/zcli/.zclirc"
     if [[ -f "$zclirc" ]]; then
-        ZPOD_API_TOKEN=$(grep 'zpod_api_token' "$zclirc" 2>/dev/null | cut -d "=" -f 2 | xargs)
+        ZPOD_API_TOKEN=$(grep 'zpod_api_token' "$zclirc" 2>/dev/null | cut -d "=" -f 2 | tr -d '\r' | xargs)
     fi
 
     log "zPodFactory setup complete."
@@ -456,17 +436,6 @@ appliance_config_zpodweb_ui() {
 appliance_config_zpod_vcf_deployer() {
     log "Configuring zPod VCF Deployer..."
 
-    # Install uv (Python package installer)
-    if ! command -v uv &>/dev/null; then
-        log "Installing uv..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh &>> "$ZPODFACTORY_CONFIG_FILE" || {
-            log "Failed to install uv."
-            return 1
-        }
-    else
-        log "uv already installed. Skipping."
-    fi
-
     local repo_dir=~/git/zpod-vcf-deployer
 
     if [[ ! -d "$repo_dir/.git" ]]; then
@@ -520,6 +489,77 @@ appliance_config_zpod_vcf_deployer() {
     else
         log "No docker-compose.yml found for zpod-vcf-deployer, skipping stack startup."
     fi
+}
+
+appliance_install_uv() {
+    # uv is the Python package & toolchain manager used by every zpodcore
+    # subproject (replaces the old pyenv + poetry combo). We install it
+    # here so it is available early in the boot sequence for every
+    # subsequent function that needs Python tooling (zpodcore itself,
+    # zpod-vcf-deployer, etc.). Requires internet access — call after
+    # appliance_check_internet_access.
+    #
+    # IMPORTANT: this function is called at firstboot from a systemd
+    # unit with a sparse environment. $HOME may be unset, and the
+    # interactive shell init files (~/.zshrc, ~/.bashrc) that the uv
+    # installer patches are NOT sourced by this non-interactive script.
+    # The function must therefore guarantee that `uv` is on PATH and
+    # callable in the current process before returning.
+
+    local uv_bin_dir="$HOME/.local/bin"
+    local uv_bin="$uv_bin_dir/uv"
+
+    if command -v uv &>/dev/null; then
+        log "uv already installed ($(uv --version 2>/dev/null)). Skipping install."
+    else
+        log "Installing uv..."
+        # Pin the install location explicitly — the installer respects
+        # UV_INSTALL_DIR and XDG_BIN_HOME. Being explicit means we know
+        # exactly where the binary lands regardless of the invoking
+        # user's XDG env (or lack thereof).
+        UV_INSTALL_DIR="$uv_bin_dir" \
+            curl -LsSf https://astral.sh/uv/install.sh | sh &>> "$ZPODFACTORY_CONFIG_FILE" || {
+            log "Failed to install uv."
+            exit 1
+        }
+    fi
+
+    # Verify the binary actually landed on disk before we touch PATH —
+    # this catches a silent installer failure that `command -v` wouldn't
+    # catch until after we rehash.
+    if [[ ! -x "$uv_bin" ]]; then
+        log "uv binary not found at $uv_bin after install. Aborting."
+        exit 1
+    fi
+
+    # Prepend the install dir to PATH for the current process so every
+    # subsequent function in this script sees `uv`.
+    case ":$PATH:" in
+        *":$uv_bin_dir:"*) ;;
+        *) export PATH="$uv_bin_dir:$PATH" ;;
+    esac
+
+    # Flush zsh's command hash table — without this, a later bare `uv`
+    # call can still resolve to a stale "command not found" cache entry
+    # even though PATH is now correct.
+    rehash 2>/dev/null || hash -r 2>/dev/null || true
+
+    # Also persist PATH into ~/.zshrc for future interactive shells on
+    # the appliance (post-firstboot operator logins). The uv installer
+    # usually handles this itself, but we make it explicit and
+    # idempotent so it survives re-runs and older installer scripts.
+    if [[ -f "$HOME/.zshrc" ]] && ! grep -q 'HOME/.local/bin' "$HOME/.zshrc"; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
+    fi
+
+    # Final sanity check — uv must be callable via PATH lookup, not just
+    # via absolute path, because later code uses bare `uv` invocations.
+    if ! command -v uv &>/dev/null; then
+        log "uv is not on PATH after install (PATH=$PATH). Aborting."
+        exit 1
+    fi
+
+    log "uv installed and on PATH: $(uv --version) at $(command -v uv)"
 }
 
 appliance_check_internet_access() {
@@ -579,6 +619,9 @@ resume_setup() {
     # Check internet access before proceeding
     appliance_check_internet_access
 
+    # Ensure uv is available (required by zpodcore + zpod-vcf-deployer)
+    appliance_install_uv
+
     # Continue with zpodfactory setup
     appliance_config_zpodfactory
     appliance_config_zpodweb_ui
@@ -620,15 +663,17 @@ main() {
     # the internal dependencies, or even the actual components to be deployed
     appliance_check_internet_access
 
+    # Install uv up front — it is the Python toolchain for every
+    # downstream step (zpodcore subprojects, zpod-vcf-deployer, ...).
+    appliance_install_uv
+
     appliance_config_zpodfactory
     appliance_config_zpodweb_ui
     appliance_config_vcf_offline_depot
     appliance_config_zpod_vcf_deployer
     appliance_config_wireguard
 
-    # Mark the setup as complete by creating the configuration file
-    touch "$ZPODFACTORY_CONFIG_FILE"
-    echo "Setup complete. Configuration file created at $ZPODFACTORY_CONFIG_FILE."
+    log "zPodFactory setup complete"
 }
 
 # Invoke the main function

@@ -6,7 +6,7 @@ OUTPUT_PATH="../output-${APPLIANCE_NAME}"
 
 rm -f ${OUTPUT_PATH}/${APPLIANCE_NAME}.mf
 
-sed "s/{{APPLIANCE_VERSION}}/${APPLIANCE_VERSION}/g" appliance.xml.template > appliance.xml
+cp appliance.xml.template appliance.xml
 
 if [ "$(uname)" == "Darwin" ]; then
     sed -i .bak1 's/<VirtualHardwareSection>/<VirtualHardwareSection ovf:transport="com.vmware.guestInfo">/g' ${OUTPUT_PATH}/${APPLIANCE_NAME}.ovf

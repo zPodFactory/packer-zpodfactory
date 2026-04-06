@@ -1,7 +1,7 @@
 services:
   wg-easy:
     environment:
-      # ⚠️  Required:
+      # ⚠️ Required:
       - WG_HOST=HOSTNAME.DOMAIN
 
       # Optional:
