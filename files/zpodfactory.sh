@@ -50,15 +50,15 @@ appliance_config_ovf_settings() {
     OVF_PASSWORD=$(sed -n 's/.*Property oe:key="guestinfo.password" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_SSHKEY=$(sed -n 's/.*Property oe:key="guestinfo.sshkey" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_SETUP_WIREGUARD=$(sed -n 's/.*Property oe:key="guestinfo.setup_wireguard" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
-    OVF_GITHUB_REPOSITORY=$(sed -n 's/.*Property oe:key="guestinfo.github_repository" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
-    OVF_GITHUB_REPOSITORY=${OVF_GITHUB_REPOSITORY:-https://github.com/zPodFactory/zpodcore}
-    OVF_GITHUB_BRANCH=$(sed -n 's/.*Property oe:key="guestinfo.github_branch" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
-    OVF_GITHUB_BRANCH=${OVF_GITHUB_BRANCH:-main}
+    OVF_GIT_REPOSITORY=$(sed -n 's/.*Property oe:key="guestinfo.git_repository" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
+    OVF_GIT_REPOSITORY=${OVF_GIT_REPOSITORY:-https://github.com/zPodFactory/zpodcore}
+    OVF_GIT_BRANCH=$(sed -n 's/.*Property oe:key="guestinfo.git_branch" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
+    OVF_GIT_BRANCH=${OVF_GIT_BRANCH:-main}
 
     clear
     log "========== OVF Settings =========="
-    log "zPodFactory GitHub Repository: $OVF_GITHUB_REPOSITORY"
-    log "zPodFactory GitHub Branch: $OVF_GITHUB_BRANCH"
+    log "zPodFactory Git Repository: $OVF_GIT_REPOSITORY"
+    log "zPodFactory Git Branch: $OVF_GIT_BRANCH"
     log "FQDN: $OVF_HOSTNAME.$OVF_DOMAIN"
     log "IP Address: $OVF_IPADDRESS/$OVF_NETPREFIX"
     log "Gateway: $OVF_GATEWAY"
@@ -258,8 +258,8 @@ appliance_config_zpodfactory() {
     mkdir -p ~/git
 
     # Clone zPodFactory main repository
-    log "Cloning zPodFactory main repository ($OVF_GITHUB_REPOSITORY, branch: $OVF_GITHUB_BRANCH)..."
-    git clone -q "$OVF_GITHUB_REPOSITORY" --branch "$OVF_GITHUB_BRANCH" ~/git/zpodcore &>/dev/null
+    log "Cloning zPodFactory main repository ($OVF_GIT_REPOSITORY, branch: $OVF_GIT_BRANCH)..."
+    git clone -q "$OVF_GIT_REPOSITORY" --branch "$OVF_GIT_BRANCH" ~/git/zpodcore &>/dev/null
 
     # Create one uv-managed virtualenv per subproject. Each subproject
     # is released independently and pins its own Python interpreter via
@@ -588,7 +588,7 @@ appliance_check_internet_access() {
 }
 
 appliance_config_wireguard() {
-    if [[ "$OVF_SETUP_WIREGUARD" == "False" ]]; then
+    if [[ "${OVF_SETUP_WIREGUARD:l}" != "true" ]]; then
         log "Wireguard setup disabled..."
         return 1
     fi
