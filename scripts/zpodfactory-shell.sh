@@ -43,11 +43,9 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 # Add Zoxide (cd replacement)
 curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | zsh -s -- --bin-dir=/usr/local/bin --man-dir=/usr/local/share/man
 
-# Add Atuin for history (https://docs.atuin.sh/guide/installation/)
-curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
-
-echo '. "$HOME/.atuin/bin/env"' >> $HOME/.zshenv
-
+echo '> Installing atuin globally...'
+# Install atuin binary to /usr/local/bin instead of per-user
+curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | ATUIN_NO_MODIFY_PATH=1 ATUIN_INSTALL_DIR=/usr/local/bin sh -s -- --non-interactive
 
 echo '> Done'
 
