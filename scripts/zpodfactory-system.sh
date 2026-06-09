@@ -55,5 +55,4 @@ curl -s https://api.github.com/repos/twpayne/chezmoi/releases/latest \
 && dpkg -i chezmoi_*_linux_amd64.deb && rm chezmoi_*_linux_amd64.deb
 
 
-
 echo '> Done'
