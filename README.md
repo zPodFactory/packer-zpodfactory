@@ -23,5 +23,5 @@ You can find the project information on the [zPodFactory website](https://zpodfa
 
 Grab the latest zPodFactory Appliance:
 
-- [zPodFactory Appliance](https://cloud.tsugliani.fr/ova/zpodfactory-latest.ova)
+- [zPodFactory Appliance](https://cloud.tsugliani.fr/ova/zpodfactory.ova)
 
