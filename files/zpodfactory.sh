@@ -351,8 +351,8 @@ appliance_config_zpodfactory() {
     # Add Default library
     just zcli library create default -u https://github.com/zpodfactory/zpodlibrary -d "Default zPodFactory library" &>> $ZPODFACTORY_CONFIG_FILE
 
-    # Enable component zbox
-    just zcli component enable zbox-13.5 &>> $ZPODFACTORY_CONFIG_FILE
+    # Enable component zcore
+    just zcli component enable zcore-13.5 &>> $ZPODFACTORY_CONFIG_FILE
 
     # Store API token for zpodweb and zpod-vcf-deployer (from .zclirc written by zcli factory add)
     local zclirc="$HOME/.config/zcli/.zclirc"
