@@ -23,7 +23,7 @@
     </Property>
     <Property ovf:key="guestinfo.dns" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>DNS</Label>
-        <Description>DNS Servers (separated by space)</Description>
+        <Description>DNS Servers (separated by space or comma)</Description>
     </Property>
     <Property ovf:key="guestinfo.domain" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>Domain</Label>

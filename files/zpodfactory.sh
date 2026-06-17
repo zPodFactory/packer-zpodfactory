@@ -43,6 +43,9 @@ appliance_config_ovf_settings() {
 
     OVF_HOSTNAME=$(sed -n 's/.*Property oe:key="guestinfo.hostname" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_DNS=$(sed -n 's/.*Property oe:key="guestinfo.dns" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
+    # Normalize the DNS list so it accepts servers separated by comma and/or space.
+    # Commas become spaces, repeated spaces are collapsed, leading/trailing spaces trimmed.
+    OVF_DNS=$(echo "$OVF_DNS" | tr ',' ' ' | tr -s ' ' | sed 's/^ *//;s/ *$//')
     OVF_DOMAIN=$(sed -n 's/.*Property oe:key="guestinfo.domain" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_GATEWAY=$(sed -n 's/.*Property oe:key="guestinfo.gateway" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
     OVF_IPADDRESS=$(sed -n 's/.*Property oe:key="guestinfo.ipaddress" oe:value="\([^"]*\).*/\1/p' $ZPODFACTORY_OVFENV_FILE)
@@ -113,6 +116,15 @@ EOF
 appliance_config_dnsmasq() {
     log "Configuring dnsmasq..."
 
+    # dnsmasq requires one "server=" entry per line, so build a line per DNS server.
+    # OVF_DNS is already normalized to a single-space-separated list.
+    local dnsmasq_servers=""
+    for dns in ${(s: :)OVF_DNS}; do
+        dnsmasq_servers+="server=${dns}"$'\n'
+    done
+    # Strip the trailing newline to avoid an empty line in the config.
+    dnsmasq_servers=${dnsmasq_servers%$'\n'}
+
     # generate /etc/dnsmasq.conf file
     cat <<EOF >/etc/dnsmasq.conf
 listen-address=127.0.0.1,$OVF_IPADDRESS
@@ -122,7 +134,7 @@ expand-hosts
 dns-forward-max=1500
 cache-size=10000
 no-dhcp-interface=lo,eth0
-server=$OVF_DNS
+$dnsmasq_servers
 domain=$OVF_DOMAIN
 local=/$OVF_DOMAIN/
 servers-file=/zPod/zPodDnsmasqServers/servers.conf
