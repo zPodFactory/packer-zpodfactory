@@ -272,7 +272,7 @@ appliance_check_internet_access() {
 # failure leaves /sbin/zpodfactory-stack.sh exactly as it already was
 # (OVA-embedded fallback, or a previously fetched copy).
 appliance_fetch_stack_script() {
-    log "Fetching zpodfactory-stack.sh from $ZPODFACTORY_STACK_URL..."
+    log "Fetching latest zpodfactory-stack.sh from GitHub zPodFactory/zpodcore ..."
 
     local candidate="/tmp/zpodfactory-stack.sh.new"
     local current="/sbin/zpodfactory-stack.sh"
@@ -281,7 +281,7 @@ appliance_fetch_stack_script() {
     if ! curl --fail --silent --show-error --location --max-time 15 \
         --retry 3 --retry-delay 2 \
         -o "$candidate" "$ZPODFACTORY_STACK_URL" 2>>"$ZPODFACTORY_CONFIG_FILE"; then
-        log "Stack script fetch failed after retries. Note this can happen even though appliance_check_internet_access passed — e.g. a proxy/firewall that allows general internet but blocks github.com specifically. Using $current as-is."
+        log "Fallback to local zpodfactory-stack.sh."
         rm -f "$candidate"
         return 0
     fi
@@ -289,7 +289,7 @@ appliance_fetch_stack_script() {
     # Guard against a truncated download or an HTML error page (rate
     # limit, outage) being installed as the real script.
     if ! zsh -n "$candidate" 2>>"$ZPODFACTORY_CONFIG_FILE"; then
-        log "Fetched stack script failed syntax check. Using $current as-is."
+        log "Fetched zpodfactory-stack.sh failed syntax check. Fallback to local zpodfactory-stack.sh."
         rm -f "$candidate"
         return 0
     fi
@@ -299,19 +299,19 @@ appliance_fetch_stack_script() {
     candidate_sha=$(sha256sum "$candidate" | awk '{print $1}')
 
     if [[ "$current_sha" == "$candidate_sha" ]]; then
-        log "zpodfactory-stack.sh is already up to date ($current_sha)."
+        log "Local zpodfactory-stack.sh is up to date (${current_sha:0:12})."
         rm -f "$candidate"
         echo "sha256=$current_sha installed_at=$(date -Iseconds) source=unchanged" >"$version_file"
         return 0
     fi
 
-    log "Update found: $current_sha -> $candidate_sha. Installing."
+    log "Newer zpodfactory-stack.sh found (${current_sha:0:12} -> ${candidate_sha:0:12}), installing ..."
 
     # Keep the pristine OVA-embedded version around once, for diagnostics.
     [[ -f "${current}.orig" ]] || cp "$current" "${current}.orig"
 
     if ! cp "$candidate" "$current" || ! chmod +x "$current"; then
-        log "Failed to install fetched stack script (disk full? read-only /sbin?). Restoring previous version."
+        log "Failed to install fetched zpodfactory-stack.sh. Fallback to local zpodfactory-stack.sh."
         cp "${current}.orig" "$current" 2>>"$ZPODFACTORY_CONFIG_FILE"
         rm -f "$candidate"
         return 0
@@ -321,7 +321,7 @@ appliance_fetch_stack_script() {
     # to write — a failed/partial cp can exit 0 at the shell level while
     # still leaving corrupt content behind.
     if [[ "$(sha256sum "$current" | awk '{print $1}')" != "$candidate_sha" ]]; then
-        log "Installed stack script checksum mismatch after copy. Restoring previous version."
+        log "Checksum mismatch after install. Fallback to local zpodfactory-stack.sh."
         cp "${current}.orig" "$current" 2>>"$ZPODFACTORY_CONFIG_FILE"
         rm -f "$candidate"
         return 0
@@ -329,7 +329,7 @@ appliance_fetch_stack_script() {
 
     rm -f "$candidate"
     echo "sha256=$candidate_sha installed_at=$(date -Iseconds) source=fetched" >"$version_file"
-    log "Installed zpodfactory-stack.sh ($candidate_sha)."
+    log "Installed latest zpodfactory-stack.sh (${candidate_sha:0:12})."
 }
 
 # Ensures zpodfactory-stack.sh is fetched at most once per deployment
@@ -340,7 +340,7 @@ appliance_ensure_stack_script() {
     local lock="/etc/zpodfactory-stack.locked"
 
     if [[ -f "$lock" ]]; then
-        log "zpodfactory-stack.sh already locked from a prior attempt ($lock exists). Reusing the installed version without re-fetching."
+        log "zpodfactory-stack.sh locked by a prior attempt, reusing installed version."
         return 0
     fi
 
