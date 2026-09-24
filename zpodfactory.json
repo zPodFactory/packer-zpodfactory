@@ -77,8 +77,13 @@
   ],
   "provisioners": [
     {
-      "source": "files/zpodfactory.sh",
-      "destination": "/sbin/zpodfactory.sh",
+      "source": "files/zpodfactory-init.sh",
+      "destination": "/sbin/zpodfactory-init.sh",
+      "type": "file"
+    },
+    {
+      "source": "files/zpodfactory-stack.sh",
+      "destination": "/sbin/zpodfactory-stack.sh",
       "type": "file"
     },
     {

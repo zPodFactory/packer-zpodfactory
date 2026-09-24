@@ -36,7 +36,7 @@ echo ">> zPodFactory Nested Lab Framework" | tee -a /etc/issue /etc/issue.net > 
 echo ">>" | tee -a /etc/issue /etc/issue.net > /dev/null
 sed -i 's/#Banner none/Banner \/etc\/issue.net/g' /etc/ssh/sshd_config
 
-echo '> Enable rc.local facility for zpodfactory.sh'
+echo '> Enable rc.local facility for zpodfactory-init.sh'
 cat << EOF > /etc/rc.local
 #!/bin/sh -e
 #
@@ -52,7 +52,7 @@ cat << EOF > /etc/rc.local
 # By default this script does nothing.
 
 if [ ! -f /etc/zpodfactory.config ]; then
-    /sbin/zpodfactory.sh
+    /sbin/zpodfactory-init.sh
     clear
 fi
 

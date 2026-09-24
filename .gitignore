@@ -1,2 +1,9 @@
 # Ignore builder configuration file containing sensitive information
-zpodfactory-builder.json 
+zpodfactory-builder.json
+
+# Local build output
+output-zpodfactory/
+
+# Local ad-hoc test deploy scripts/config
+test-zpodfactory.json
+test-zpodfactory.sh
