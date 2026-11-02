@@ -1,9 +1,22 @@
 # Ignore builder configuration file containing sensitive information
 zpodfactory-builder.json
 
-# Local build output
-output-zpodfactory/
+# Installer ISOs and exported appliances
+*.iso
+*.ova
 
-# Local ad-hoc test deploy scripts/config
-test-zpodfactory.json
+# Packer build output (multi-GB OVA artifacts)
+output-*/
+
+# Local analysis/scratch reports
+docs/
+
+# Run transcripts and captures
+runs/
+
+# Local Claude Code session settings
+.claude/
+
+# Local OVA test helpers (carry a lab address and a password)
 test-zpodfactory.sh
+test-zpodfactory.json

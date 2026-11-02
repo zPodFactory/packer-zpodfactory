@@ -25,3 +25,5 @@ Grab the latest zPodFactory Appliance:
 
 - [zPodFactory Appliance](https://cloud.tsugliani.fr/ova/zpodfactory.ova)
 
+What changed: [CHANGELOG.md](CHANGELOG.md).
+
