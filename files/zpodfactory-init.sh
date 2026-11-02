@@ -178,12 +178,19 @@ appliance_config_openntpd() {
 appliance_config_storage() {
     log "Configuring storage..."
 
+    # Rescan the disk (detect size change)
+    echo 1 > /sys/class/block/sda/device/rescan
+
+    # growpart reports NOCHANGE (exit 1) when the VM disk was not enlarged:
+    # nothing to extend, so skip instead of logging it as a failure.
+    if growpart --dry-run /dev/sda 2 2>&1 | grep -q '^NOCHANGE'; then
+        log "Disk size unchanged, skipping extend."
+        return 0
+    fi
+
     # Display disk usage before extending partitions
     log "Disk usage before extending partitions:"
     duf -only local
-
-    # Rescan the disk (detect size change)
-    echo 1 > /sys/class/block/sda/device/rescan
 
     # Grow partition 2 on /dev/sda
     if growpart /dev/sda 2; then

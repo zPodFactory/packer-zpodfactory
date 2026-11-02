@@ -24,6 +24,9 @@ history there. The commit history has the reasoning.
 - A fresh appliance's `/var/log/syslog` and journal no longer start with entries from the build
   VM: the cleanup script stops syslog-ng and moves journald off `/var/log` before it deletes the
   log files.
+- First boot on a disk left at the OVA's default size logs `Disk size unchanged, skipping
+  extend.` instead of `Failed to extend partition 2 on /dev/sda. Exiting...`, which read like an
+  error although there was simply nothing to grow.
 
 ## 2026-09-24
 
