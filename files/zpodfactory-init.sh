@@ -157,19 +157,35 @@ EOF
     fi
 }
 
-# Function to configure openntpd
-appliance_config_openntpd() {
-    log "Configuring openntpd..."
+# Function to configure chrony (NTP server relaying time to the zPods)
+appliance_config_chrony() {
+    log "Configuring chrony..."
 
-    # Uncomment and set the listen address to the configured IP
-    sed -i "s/#listen on \*/listen on $OVF_IPADDRESS/" /etc/openntpd/ntpd.conf
+    cat <<EOF >/etc/chrony/chrony.conf
+# Managed by zpodfactory-init.sh
+pool 0.debian.pool.ntp.org iburst
+pool 1.debian.pool.ntp.org iburst
+pool 2.debian.pool.ntp.org iburst
+pool 3.debian.pool.ntp.org iburst
 
-    # Restart openntpd service and check status
-    log "Restarting openntpd..."
-    if systemctl restart openntpd; then
-        log "openntpd successfully restarted."
+driftfile /var/lib/chrony/chrony.drift
+logdir /var/log/chrony
+makestep 1.0 3
+rtcsync
+leapsectz right/UTC
+
+# Serve time to any client (the zPods)
+allow all
+
+# Keep serving time to clients even when no upstream source is reachable
+local stratum 10
+EOF
+
+    systemctl enable chrony &>/dev/null
+    if systemctl restart chrony; then
+        log "chrony successfully restarted."
     else
-        log "Failed to restart openntpd."
+        log "Failed to restart chrony."
         exit 1
     fi
 }
@@ -394,7 +410,7 @@ main() {
     appliance_config_host
     appliance_config_network
     appliance_config_dnsmasq
-    appliance_config_openntpd
+    appliance_config_chrony
     appliance_config_storage
     appliance_config_credentials
 

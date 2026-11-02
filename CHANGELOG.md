@@ -16,6 +16,11 @@ history there. The commit history has the reasoning.
 ### Changed
 - The bundled `zpodfactory-stack.sh` enables `zcore-13.7` (was 13.5), matching `zpodcore`, so
   an offline first boot deploys the same zcore as an online one.
+- **NTP is served by chrony instead of openntpd**, like the other zPodFactory appliances. It
+  syncs within seconds of first boot (openntpd took several minutes), copes better with VM
+  clock jumps, and keeps serving the zPods from its local clock if upstream is unreachable.
+  Same upstream (`debian.pool.ntp.org`); it now answers on every interface, not only the
+  appliance IP. Check it with `chronyc tracking` and `chronyc sources`.
 
 ### Fixed
 - **syslog-ng runs at boot.** Debian 13's `syslog-ng-core` package registers only its sysvinit
