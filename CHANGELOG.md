@@ -13,6 +13,10 @@ history there. The commit history has the reasoning.
 
 ## [Unreleased]
 
+### Changed
+- The bundled `zpodfactory-stack.sh` enables `zcore-13.7` (was 13.5), matching `zpodcore`, so
+  an offline first boot deploys the same zcore as an online one.
+
 ### Fixed
 - **syslog-ng runs at boot.** Debian 13's `syslog-ng-core` package registers only its sysvinit
   script and never enables the systemd unit, so the appliance came up with the unit
