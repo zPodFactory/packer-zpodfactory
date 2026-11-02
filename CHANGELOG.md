@@ -21,6 +21,9 @@ history there. The commit history has the reasoning.
 - **syslog-ng runs at boot.** Debian 13's `syslog-ng-core` package registers only its sysvinit
   script and never enables the systemd unit, so the appliance came up with the unit
   `disabled` and no `/var/log/syslog`. The system script now enables it explicitly.
+- A fresh appliance's `/var/log/syslog` and journal no longer start with entries from the build
+  VM: the cleanup script stops syslog-ng and moves journald off `/var/log` before it deletes the
+  log files.
 
 ## 2026-09-24
 

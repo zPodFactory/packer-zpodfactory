@@ -46,6 +46,13 @@ echo ""  > /etc/resolv.conf
 echo '> Removing Log files...'
 cat /dev/null > /var/log/wtmp 2>/dev/null
 logrotate -f /etc/logrotate.conf 2>/dev/null
+# Stop syslog-ng and move journald to volatile /run storage before deleting:
+# both otherwise keep writing build-time lines into /var/log (syslog, the
+# journal) right up to the shutdown. journald flushes back to /var/log/journal
+# at boot. This must come after logrotate, whose syslog-ng postrotate hook
+# reloads the daemon and fails (aborting this -e script) once it is stopped.
+systemctl stop syslog-ng.service
+journalctl --relinquish-var
 find /var/log -type f -delete
 rm -f /var/lib/dhcp/*
 
