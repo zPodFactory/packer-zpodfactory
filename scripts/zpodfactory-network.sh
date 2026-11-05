@@ -14,7 +14,7 @@ apt-get install -y \
   telnet \
   dnsmasq \
   tcpdump \
-  openntpd \
+  chrony \
   mtr-tiny \
   wireguard \
   traceroute \
